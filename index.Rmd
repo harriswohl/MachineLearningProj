@@ -1,0 +1,69 @@
+---
+title: "Machine Learning Project"
+author: "Harris Wohl"
+date: "8/11/2020"
+output: html_document
+---
+```{r include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(randomForest)
+```
+## Background (from instructions)
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data Processing
+
+The first step is to download the training and testing sets, and read them into R. The training set is named "train" and the testing set is named "validation" to alleviate confusion during the cross-validation step.
+
+```{r}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "train.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "test.csv")
+train <- read.csv("./train.csv")
+val <- read.csv("./test.csv")
+dim(train)
+str(train)
+```
+
+## Data Cleaning
+
+Any column that has more than 1900 NAs is removed, as well as features that have near zero variance. Lastly, columns such as user name, timestamp, and ID are removed since they likely have no effect on the response variable classe. 
+```{r}
+nas <- sapply(train, function(x) sum(is.na(x)))
+train <- train[, nas<1900]
+
+remove <- nearZeroVar(train)
+train <- train[, -remove]
+
+train <- train[, -1]
+train <- subset(train, select = -c(user_name, cvtd_timestamp))
+dim(train)
+```
+
+## Random Forest Model
+
+I decided to start with a random forest model since they are incredibly versatile and tend to have low out of sample error. 
+
+The model is cross validated using a testing and training set with p = .7. 
+
+```{r}
+#create partition in our training set
+set.seed(8675309)
+inTrain <- createDataPartition(train$classe, p = .7, list = FALSE)
+training <- train[inTrain,]
+testing <- train[-inTrain,]
+
+#run model and check accuracy
+rf <- randomForest(classe ~ ., data = training)
+confusionMatrix(predict(rf, testing), testing$classe)
+```
+
+As shown by the confusion matrix, the accuracy is above 99%, so there is no need to try another model. 
+
+## Predicting classe in Validation set
+
+Below are the predictions based on the random forest model.
+```{r}
+predict(rf, val)
+```
